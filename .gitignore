@@ -1,0 +1,11 @@
+# Ignorar la carpeta "Mensaje"
+Mensaje/
+
+# Ignorar archivos de base de datos
+*.db
+
+# Archivos de caché y temporales
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
