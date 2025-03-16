@@ -4,6 +4,9 @@ import re
 from docx import Document
 from striprtf.striprtf import rtf_to_text
 
+
+#hola Agustin#
+
 DB_NAME = "correos.db"
 
 # def vaciar_tabla():
