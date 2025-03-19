@@ -1,5 +1,7 @@
 # Ignorar la carpeta "Mensaje"
 Mensaje/
+Mensajes/
+carpeta_de_correos/
 
 # Ignorar archivos de base de datos
 *.db
