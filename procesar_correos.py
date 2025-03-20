@@ -4,21 +4,7 @@ import re
 from docx import Document
 from striprtf.striprtf import rtf_to_text
 
-
-#hola Agustin#
-
 DB_NAME = "correos.db"
-
-# def vaciar_tabla():
-#     """Vacía la tabla 'correos' sin eliminar su estructura"""
-#     with sqlite3.connect(DB_NAME) as conn:
-#         cursor = conn.cursor()
-#         cursor.execute("DELETE FROM correos")
-#         conn.commit()
-#         print("Tabla 'correos' vaciada.")
-
-# # Vaciar la tabla antes de procesar los nuevos archivos
-# vaciar_tabla()
 
 def crear_tablas():
     with sqlite3.connect(DB_NAME) as conn:
@@ -57,8 +43,8 @@ def extraer_datos_correo(texto):
     promotor = re.search(r"Promotor:\s*([A-Z]+-[A-Z]{2})", texto)
     promotor = promotor.group(1) if promotor else ""
 
-    # Extraer Asunto (formato NRO 1234 R GHO 123456 ENE 25)
-    asunto = re.search(r"Asunto:\s*NRO\s*(\d{4} R GHO \d{6} \w{3} \d{2})", texto)
+    # Extraer Asunto (formato Número + Letra + "GHO" + DDhhmm + MES + aa)
+    asunto = re.search(r"Asunto:\s*(\d{4} [A-Z] GHO \d{6} [A-Z]{3} \d{2})", texto)
     asunto = asunto.group(1) if asunto else ""
 
     # Extraer Ejecutivo(s) (formato ALGO-XX, separado por coma o barra)
@@ -83,7 +69,6 @@ def agregar_correo(conn, promotor, asunto, ejecutivo, informativo):
 
 def procesar_archivo(ruta_archivo):
     """Determina el tipo de archivo, extrae datos y los guarda en la BD evitando duplicados"""
-    # Ignorar archivos temporales de Word (que comienzan con ~$)
     if ruta_archivo.startswith("~$"):
         print(f"🔹 Ignorando archivo temporal: {ruta_archivo}")
         return
@@ -112,7 +97,7 @@ def procesar_archivo(ruta_archivo):
         with sqlite3.connect(DB_NAME) as conn:
             correo_id = agregar_correo(conn, promotor, asunto, ejecutivo, informativo)
             if correo_id:
-                print(f"Correo agregado con éxito: {promotor} - {asunto}")
+                print(f"✅ Correo agregado con éxito: {promotor} - {asunto}")
             else:
                 print(f"⚠ Correo duplicado: {promotor} - {asunto}")
     except Exception as e:
