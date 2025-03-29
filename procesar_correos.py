@@ -5,6 +5,7 @@ from docx import Document
 from striprtf.striprtf import rtf_to_text
 
 DB_NAME = "correos.db"
+NOMBRE_CARPETA_DE_MENSAJES = "Mensajes"
 
 def crear_tablas():
     with sqlite3.connect(DB_NAME) as conn:
@@ -44,7 +45,8 @@ def extraer_datos_correo(texto):
     promotor = promotor.group(1) if promotor else ""
 
     # Extraer Asunto (formato Número + Letra + "GHO" + DDhhmm + MES + aa)
-    asunto = re.search(r"Asunto:\s*(\d{4} [A-Z] GHO \d{6} [A-Z]{3} \d{2})", texto)
+    asunto = re.search(r"(?i)asunto:\s*([\d\sA-Z]+GHO\s*\d{6}\s*[A-Z]{3}\s*\d{2})", texto)
+    #asunto = re.search(r"Asunto:\s*(\d{4} [A-Z] GHO \d{6} [A-Z]{3} \d{2})", texto)
     asunto = asunto.group(1) if asunto else ""
 
     # Extraer Ejecutivo(s) (formato ALGO-XX, separado por coma o barra)
@@ -86,7 +88,8 @@ def procesar_archivo(ruta_archivo):
     else:
         print(f"⚠ Formato no soportado: {ruta_archivo}")
         return
-
+    
+    print(f"📄 Texto extraído de {ruta_archivo}:\n{texto[:500]}")
     promotor, asunto, ejecutivo, informativo = extraer_datos_correo(texto)
 
     if not asunto:
@@ -115,4 +118,4 @@ def procesar_carpeta(carpeta_base):
 crear_tablas()
 
 # Procesar todos los archivos en la carpeta "carpeta_de_correos"
-procesar_carpeta("carpeta_de_correos")
+procesar_carpeta(NOMBRE_CARPETA_DE_MENSAJES)
