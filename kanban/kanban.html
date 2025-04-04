@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kanban Local Dinámico</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 1rem;
+        background: #f5f5f5;
+      }
+      h2 {
+        margin-bottom: 1rem;
+      }
+      .kanban-container {
+        display: flex;
+        gap: 1rem;
+        overflow-x: auto;
+      }
+      .kanban-column {
+        background: white;
+        padding: 1rem;
+        border-radius: 5px;
+        min-width: 250px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .kanban-column h3 {
+        margin-top: 0;
+      }
+      .kanban-card {
+        background: #e3f2fd;
+        margin-bottom: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 4px;
+        cursor: grab;
+      }
+      .actions {
+        margin-bottom: 1rem;
+      }
+      button {
+        margin-right: 0.5rem;
+      }
+      input[type="file"] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>📋 Kanban Local con JSON</h2>
+
+    <div class="actions">
+      <button onclick="addTask()">➕ Nueva tarea</button>
+      <button onclick="exportTasks()">💾 Exportar tareas</button>
+      <label>
+        📂 Importar tareas
+        <input type="file" accept=".json" onchange="importTasks(event)" />
+      </label>
+    </div>
+
+    <div id="kanban" class="kanban-container"></div>
+
+    <script>
+      let tasks = [];
+
+      const estados = ["Pendiente", "En Proceso", "Terminado"];
+
+      function renderBoard() {
+        const container = document.getElementById("kanban");
+        container.innerHTML = "";
+
+        estados.forEach((estado) => {
+          const column = document.createElement("div");
+          column.className = "kanban-column";
+          column.innerHTML = `<h3>${estado}</h3>`;
+          const list = document.createElement("div");
+
+          tasks
+            .filter((t) => t.estado === estado)
+            .forEach((t) => {
+              const card = document.createElement("div");
+              card.className = "kanban-card";
+              card.innerText = `${t.titulo} (${t.responsable})`;
+              list.appendChild(card);
+            });
+
+          column.appendChild(list);
+          container.appendChild(column);
+        });
+      }
+
+      function addTask() {
+        const titulo = prompt("Título:");
+        const responsable = prompt("Responsable:");
+        const estado = prompt(
+          "Estado (Pendiente, En Proceso, Terminado):",
+          "Pendiente"
+        );
+
+        if (!titulo || !responsable || !estado) return;
+
+        const nueva = {
+          id: Date.now(),
+          titulo,
+          responsable,
+          estado,
+        };
+
+        tasks.push(nueva);
+        renderBoard();
+      }
+
+      function exportTasks() {
+        const data = JSON.stringify(tasks, null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "data.json";
+        a.click();
+
+        URL.revokeObjectURL(url);
+      }
+
+      function importTasks(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            tasks = JSON.parse(e.target.result);
+            renderBoard();
+          } catch (err) {
+            alert("Archivo inválido.");
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      // Intentar cargar archivo inicial (opcional)
+      fetch("data.json")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((json) => {
+          tasks = json;
+          renderBoard();
+        })
+        .catch(() => {
+          tasks = [];
+          renderBoard();
+        });
+    </script>
+  </body>
+</html>
