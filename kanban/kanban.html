@@ -34,6 +34,9 @@
         border-radius: 4px;
         cursor: grab;
       }
+      .kanban-card:hover {
+        background: #bbdefb;
+      }
       .actions {
         margin-bottom: 1rem;
       }
@@ -42,6 +45,10 @@
       }
       input[type="file"] {
         display: none;
+      }
+      .filters {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
       }
     </style>
   </head>
@@ -57,16 +64,23 @@
       </label>
     </div>
 
+    <div class="filters">
+      Filtrar por responsable:
+      <select id="filtroResponsable" onchange="renderBoard()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+
     <div id="kanban" class="kanban-container"></div>
 
     <script>
       let tasks = [];
-
       const estados = ["Pendiente", "En Proceso", "Terminado"];
 
       function renderBoard() {
         const container = document.getElementById("kanban");
         container.innerHTML = "";
+        const filtro = document.getElementById("filtroResponsable").value;
 
         estados.forEach((estado) => {
           const column = document.createElement("div");
@@ -76,10 +90,12 @@
 
           tasks
             .filter((t) => t.estado === estado)
+            .filter((t) => !filtro || t.responsable === filtro)
             .forEach((t) => {
               const card = document.createElement("div");
               card.className = "kanban-card";
               card.innerText = `${t.titulo} (${t.responsable})`;
+              card.onclick = () => editTask(t.id);
               list.appendChild(card);
             });
 
@@ -106,7 +122,28 @@
         };
 
         tasks.push(nueva);
+        updateResponsables();
         renderBoard();
+      }
+
+      function editTask(id) {
+        const tarea = tasks.find((t) => t.id === id);
+        if (!tarea) return;
+
+        const nuevoTitulo = prompt("Editar título:", tarea.titulo);
+        const nuevoResponsable = prompt(
+          "Editar responsable:",
+          tarea.responsable
+        );
+        const nuevoEstado = prompt("Editar estado:", tarea.estado);
+
+        if (nuevoTitulo && nuevoResponsable && nuevoEstado) {
+          tarea.titulo = nuevoTitulo;
+          tarea.responsable = nuevoResponsable;
+          tarea.estado = nuevoEstado;
+          updateResponsables();
+          renderBoard();
+        }
       }
 
       function exportTasks() {
@@ -130,6 +167,7 @@
         reader.onload = (e) => {
           try {
             tasks = JSON.parse(e.target.result);
+            updateResponsables();
             renderBoard();
           } catch (err) {
             alert("Archivo inválido.");
@@ -138,11 +176,24 @@
         reader.readAsText(file);
       }
 
-      // Intentar cargar archivo inicial (opcional)
+      function updateResponsables() {
+        const select = document.getElementById("filtroResponsable");
+        const responsables = [...new Set(tasks.map((t) => t.responsable))];
+        select.innerHTML = '<option value="">Todos</option>';
+        responsables.forEach((r) => {
+          const opt = document.createElement("option");
+          opt.value = r;
+          opt.innerText = r;
+          select.appendChild(opt);
+        });
+      }
+
+      // Cargar data inicial si existe
       fetch("data.json")
         .then((res) => (res.ok ? res.json() : []))
         .then((json) => {
           tasks = json;
+          updateResponsables();
           renderBoard();
         })
         .catch(() => {
