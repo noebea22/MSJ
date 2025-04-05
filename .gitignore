@@ -3,6 +3,7 @@ Mensaje/
 Mensajes/
 carpeta_de_correos/
 venv/
+kanban/data.json
 
 # Ignorar archivos de base de datos
 *.db
