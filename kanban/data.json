@@ -3,7 +3,10 @@
     "id": 1,
     "titulo": "Configurar red",
     "responsable": "Ana",
-    "estado": "Pendiente"
+    "estado": "En Proceso",
+    "fechaInicio": "2025-06-15",
+    "fechaFin": "2025-07-16",
+    "actividad": "T-89"
   },
   {
     "id": 2,
@@ -15,6 +18,18 @@
     "id": 3,
     "titulo": "Backup semanal",
     "responsable": "Juan",
-    "estado": "Terminado"
+    "estado": "Terminado",
+    "actividad": "T-89",
+    "fechaInicio": "",
+    "fechaFin": ""
+  },
+  {
+    "id": 1743808460871,
+    "titulo": "Prueba",
+    "responsable": "",
+    "estado": "Pendiente",
+    "fechaInicio": "",
+    "fechaFin": "",
+    "actividad": ""
   }
 ]
