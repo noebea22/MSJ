@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Generador de HTML con tareas</title>
+  </head>
+  <body>
+    <h1>Generador de Tablero HTML</h1>
+
+    <label
+      >📄 Cargar tablero.html:
+      <input type="file" id="htmlFile" accept=".html" />
+    </label>
+    <br /><br />
+    <label
+      >📑 Cargar tareas.csv:
+      <input type="file" id="csvFile" accept=".csv" />
+    </label>
+    <br /><br />
+
+    <button onclick="generarHTML()">🎯 Generar HTML Final</button>
+    <br /><br />
+    <a id="downloadLink" style="display: none">⬇️ Descargar HTML generado</a>
+
+    <script>
+      let htmlContent = "";
+      let tareasDesdeCSV = "";
+
+      function parseCSV(text) {
+        const rows = text.trim().split("\n");
+        const headers = rows[0].split(",");
+        const tareas = rows.slice(1).map((row, index) => {
+          const values = row.split(",");
+          const obj = {};
+          headers.forEach((h, i) => {
+            const cleanKey = h.replace(/"/g, "").toLowerCase();
+            const cleanVal = values[i]
+              .replace(/(^"|"$)/g, "")
+              .replace(/""/g, '"');
+            obj[cleanKey] = cleanVal;
+          });
+          return {
+            id: Number(obj.id),
+            titulo: obj.título || obj.titulo,
+            estado: obj.estado,
+            descripcion: obj.descripcion,
+            inicio: obj.inicio,
+            fin: obj.fin,
+          };
+        });
+        return tareas;
+      }
+
+      function generarHTML() {
+        const htmlFile = document.getElementById("htmlFile").files[0];
+        const csvFile = document.getElementById("csvFile").files[0];
+
+        if (!htmlFile || !csvFile) {
+          alert("Por favor, sube ambos archivos.");
+          return;
+        }
+
+        const readerHTML = new FileReader();
+        readerHTML.onload = function (e) {
+          htmlContent = e.target.result;
+
+          const readerCSV = new FileReader();
+          readerCSV.onload = function (e) {
+            const tareas = parseCSV(e.target.result);
+            const tareasJS =
+              "let tareas = " + JSON.stringify(tareas, null, 2) + ";";
+            const htmlModificado = htmlContent.replace(
+              /let tareas = \[[\s\S]*?\];/,
+              tareasJS
+            );
+
+            const blob = new Blob([htmlModificado], { type: "text/html" });
+            const url = URL.createObjectURL(blob);
+            const link = document.getElementById("downloadLink");
+            link.href = url;
+            link.download = "tablero_final.html";
+            link.style.display = "inline-block";
+            link.textContent = "⬇️ Descargar HTML generado";
+          };
+          readerCSV.readAsText(csvFile);
+        };
+        readerHTML.readAsText(htmlFile);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Planificación y Control GM</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #f0f0f0;
+        margin: 0;
+        padding: 1rem;
+      }
+
+      h1 {
+        text-align: center;
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .kanban-board {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .column {
+        background: #fff;
+        padding: 1rem;
+        border-radius: 8px;
+        width: 300px;
+        min-height: 200px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .column h2 {
+        text-align: center;
+      }
+
+      .card {
+        background: #e0e7ff;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        cursor: grab;
+      }
+
+      .card[contenteditable] {
+        background: #fff9c4;
+      }
+
+      .card.vencida {
+        background: #ffcdd2 !important;
+      }
+
+      .summary {
+        text-align: center;
+        margin-top: 1rem;
+      }
+
+      .fecha {
+        font-size: 0.8em;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Tablero General GM</h1>
+
+    <div
+      class="toolbar"
+      style="
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        justify-content: center;
+      "
+    >
+      <h3>➕</h3>
+      <div
+        style="
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          justify-content: center;
+        "
+      >
+        <input type="text" id="nuevoTitulo" placeholder="Título" />
+        <input type="text" id="nuevaDescripcion" placeholder="Descripción" />
+        <input type="date" id="nuevoInicio" />
+        <input type="date" id="nuevoFin" />
+        <select id="nuevoEstado">
+          <option value="Planificada">Planificada</option>
+          <option value="En progreso">En progreso</option>
+          <option value="Finalizada">Finalizada</option>
+        </select>
+        <button onclick="agregarTarea()">Agregar</button>
+      </div>
+
+      <input type="text" id="filtro" placeholder="Buscar..." />
+      <button onclick="actualizarVista()">Filtrar</button>
+      <button onclick="exportarCSV()">Exportar CSV</button>
+    </div>
+
+    <div class="summary" id="resumen"></div>
+
+    <div class="kanban-board" id="kanban"></div>
+
+    <script>
+      let tareas = [
+        {
+          id: 1,
+          titulo: "Definir requerimientos",
+          estado: "Planificada",
+          descripcion: "Reunión con cliente",
+          inicio: "2026-04-01",
+          fin: "2026-04-05",
+        },
+        {
+          id: 2,
+          titulo: "Diseño inicial",
+          estado: "En progreso",
+          descripcion: "Maqueta en Figma",
+          inicio: "2025-04-02",
+          fin: "2025-04-07",
+        },
+        {
+          id: 3,
+          titulo: "Desarrollo backend",
+          estado: "En progreso",
+          descripcion: "API con FastAPI",
+          inicio: "2025-03-04",
+          fin: "2025-03-10",
+        },
+        {
+          id: 4,
+          titulo: "Pruebas QA",
+          estado: "Finalizada",
+          descripcion: "Casos de prueba ejecutados",
+          inicio: "2025-03-25",
+          fin: "2025-03-30",
+        },
+        {
+          id: 5,
+          titulo: "Entrega final",
+          estado: "Planificada",
+          descripcion: "Enviar documentación",
+          inicio: "2025-04-08",
+          fin: "2025-04-12",
+        },
+      ];
+
+      const estados = ["Planificada", "En progreso", "Finalizada"];
+
+      function renderKanban(filtro = "") {
+        const kanban = document.getElementById("kanban");
+        kanban.innerHTML = "";
+
+        const resumen = {};
+        const hoy = new Date().toISOString().split("T")[0];
+
+        estados.forEach((estado) => {
+          const col = document.createElement("div");
+          col.className = "column";
+          col.ondragover = (e) => e.preventDefault();
+          col.ondrop = (e) => {
+            const id = e.dataTransfer.getData("text/plain");
+            const tarea = tareas.find((t) => t.id == id);
+            tarea.estado = estado;
+            actualizarVista();
+          };
+
+          const titulo = document.createElement("h2");
+          titulo.textContent = estado;
+          col.appendChild(titulo);
+
+          const tareasFiltradas = tareas.filter(
+            (t) =>
+              t.estado === estado &&
+              (t.titulo.toLowerCase().includes(filtro.toLowerCase()) ||
+                t.descripcion.toLowerCase().includes(filtro.toLowerCase()))
+          );
+
+          resumen[estado] = tareasFiltradas.length;
+
+          tareasFiltradas.forEach((tarea) => {
+            const card = document.createElement("div");
+            card.className = "card";
+            if (estado !== "Finalizada" && tarea.fin < hoy) {
+              card.classList.add("vencida");
+            }
+            card.draggable = true;
+            card.ondragstart = (e) =>
+              e.dataTransfer.setData("text/plain", tarea.id);
+
+            const h3 = document.createElement("h3");
+            h3.textContent = tarea.titulo;
+            h3.contentEditable = true;
+            h3.onblur = () => (tarea.titulo = h3.textContent);
+            card.appendChild(h3);
+
+            const p = document.createElement("p");
+            p.textContent = tarea.descripcion;
+            p.contentEditable = true;
+            p.onblur = () => (tarea.descripcion = p.textContent);
+            card.appendChild(p);
+
+            const fecha = document.createElement("div");
+            fecha.className = "fecha";
+            fecha.innerHTML = `Inicio: <span contenteditable onblur="tareas.find(t => t.id == ${tarea.id}).inicio = this.textContent">${tarea.inicio}</span><br>Fin: <span contenteditable onblur="tareas.find(t => t.id == ${tarea.id}).fin = this.textContent">${tarea.fin}</span>`;
+            card.appendChild(fecha);
+
+            col.appendChild(card);
+          });
+
+          kanban.appendChild(col);
+        });
+
+        const resumenDiv = document.getElementById("resumen");
+        resumenDiv.textContent = `Resumen: ${estados
+          .map((e) => `${e}: ${resumen[e] || 0}`)
+          .join(" | ")}`;
+      }
+
+      function actualizarVista() {
+        const filtro = document.getElementById("filtro").value;
+        renderKanban(filtro);
+      }
+
+      renderKanban();
+
+      function exportarCSV() {
+        const encabezados = [
+          "ID",
+          "Título",
+          "Estado",
+          "Descripción",
+          "Inicio",
+          "Fin",
+        ];
+        const filas = tareas.map((t) =>
+          [t.id, t.titulo, t.estado, t.descripcion, t.inicio, t.fin]
+            .map((valor) => `"${String(valor).replace(/"/g, '""')}"`)
+            .join(",")
+        );
+        const csvContent = [encabezados.join(","), ...filas].join("\n");
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", "tareas.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function agregarTarea() {
+        const titulo = document.getElementById("nuevoTitulo").value.trim();
+        const descripcion = document
+          .getElementById("nuevaDescripcion")
+          .value.trim();
+        const inicio = document.getElementById("nuevoInicio").value;
+        const fin = document.getElementById("nuevoFin").value;
+        const estado = document.getElementById("nuevoEstado").value;
+
+        if (!titulo || !descripcion || !inicio || !fin) {
+          alert("Por favor, completa todos los campos.");
+          return;
+        }
+
+        const nuevaTarea = {
+          id: tareas.length ? Math.max(...tareas.map((t) => t.id)) + 1 : 1,
+          titulo,
+          estado,
+          descripcion,
+          inicio,
+          fin,
+        };
+
+        tareas.push(nuevaTarea);
+
+        // Limpia campos
+        document.getElementById("nuevoTitulo").value = "";
+        document.getElementById("nuevaDescripcion").value = "";
+        document.getElementById("nuevoInicio").value = "";
+        document.getElementById("nuevoFin").value = "";
+
+        actualizarVista();
+      }
+    </script>
+  </body>
+</html>
