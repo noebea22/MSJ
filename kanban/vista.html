@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Planificación y Control GM</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #f0f0f0;
+        margin: 0;
+        padding: 1rem;
+      }
+
+      .encabezado {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+      }
+
+      h1 {
+        margin: 0;
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .kanban-board {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .column {
+        background: #fff;
+        padding: 1rem;
+        border-radius: 8px;
+        width: 300px;
+        min-height: 200px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .column h2 {
+        text-align: center;
+      }
+
+      .card {
+        background: #e0e7ff;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        cursor: grab;
+      }
+
+      .card[contenteditable] {
+        background: #fff9c4;
+      }
+
+      .card.vencida {
+        background: #ffcdd2 !important;
+      }
+
+      .summary {
+        text-align: center;
+        margin-top: 1rem;
+      }
+
+      .fecha {
+        font-size: 0.8em;
+        color: #555;
+      }
+
+      #calendarView {
+        display: none;
+        text-align: center;
+        margin-top: 2rem;
+      }
+
+      table.calendar {
+        margin: 0 auto;
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 800px;
+      }
+
+      table.calendar th {
+        padding: 4px;
+        font-weight: bold;
+        text-align: center;
+        font-size: 0.9rem;
+      }
+
+      table.calendar td {
+        width: 14.28%;
+        height: 60px;
+        vertical-align: top;
+        padding: 2px;
+        text-align: left;
+      }
+
+      .calendar-nav {
+        margin: 1rem;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="encabezado">
+      <h1>Tablero General GM</h1>
+      <button onclick="alternarVista()">Alternar Vista</button>
+    </div>
+
+    <div class="toolbar" id="barraControles">
+      <h3>➕</h3>
+      <input type="text" id="nuevoTitulo" placeholder="Título" />
+      <input type="text" id="nuevaDescripcion" placeholder="Descripción" />
+      <input type="date" id="nuevoInicio" />
+      <input type="date" id="nuevoFin" />
+      <select id="nuevoEstado">
+        <option value="Planificada">Planificada</option>
+        <option value="En progreso">En progreso</option>
+        <option value="Finalizada">Finalizada</option>
+      </select>
+      <button onclick="agregarTarea()">Agregar</button>
+
+      <input type="text" id="filtro" placeholder="Buscar..." />
+      <button onclick="actualizarVista()">Filtrar</button>
+      <button onclick="exportarCSV()">Exportar CSV</button>
+    </div>
+
+    <div class="summary" id="resumen"></div>
+    <div class="kanban-board" id="kanban"></div>
+
+    <div id="calendarView">
+      <div class="calendar-nav">
+        <button onclick="cambiarMes(-1)">&lt; Anterior</button>
+        <h2 id="mesAnio"></h2>
+        <button onclick="cambiarMes(1)">Siguiente &gt;</button>
+      </div>
+      <table class="calendar">
+        <thead>
+          <tr>
+            <th>D</th>
+            <th>L</th>
+            <th>M</th>
+            <th>X</th>
+            <th>J</th>
+            <th>V</th>
+            <th>S</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpoCalendario"></tbody>
+      </table>
+    </div>
+
+    <script>
+      let tareas = [
+        {
+          id: 1,
+          titulo: "Definir requerimientos",
+          estado: "Planificada",
+          inicio: "2026-04-01",
+          fin: "2026-04-05",
+        },
+        {
+          id: 2,
+          titulo: "Diseño inicial",
+          estado: "En progreso",
+          inicio: "2025-04-02",
+          fin: "2025-04-07",
+        },
+        {
+          id: 3,
+          titulo: "Desarrollo backend",
+          estado: "En progreso",
+          inicio: "2025-03-04",
+          fin: "2025-03-10",
+        },
+        {
+          id: 4,
+          titulo: "Pruebas QA",
+          estado: "Finalizada",
+          inicio: "2025-03-25",
+          fin: "2025-03-30",
+        },
+        {
+          id: 5,
+          titulo: "Entrega final",
+          estado: "Planificada",
+          inicio: "2025-04-08",
+          fin: "2025-04-12",
+        },
+      ];
+
+      const estados = ["Planificada", "En progreso", "Finalizada"];
+      let vistaCalendario = false;
+      let fechaActual = new Date();
+
+      function alternarVista() {
+        vistaCalendario = !vistaCalendario;
+        document.getElementById("kanban").style.display = vistaCalendario
+          ? "none"
+          : "flex";
+        document.getElementById("calendarView").style.display = vistaCalendario
+          ? "block"
+          : "none";
+        document.getElementById("resumen").style.display = vistaCalendario
+          ? "none"
+          : "block";
+        document.getElementById("barraControles").style.display =
+          vistaCalendario ? "none" : "flex";
+        if (vistaCalendario) renderCalendario();
+        else actualizarVista();
+      }
+
+      function cambiarMes(direccion) {
+        fechaActual.setMonth(fechaActual.getMonth() + direccion);
+        renderCalendario();
+      }
+
+      function renderCalendario() {
+        const tbody = document.getElementById("cuerpoCalendario");
+        const mes = fechaActual.getMonth();
+        const anio = fechaActual.getFullYear();
+        const primerDia = new Date(anio, mes, 1).getDay();
+        const diasMes = new Date(anio, mes + 1, 0).getDate();
+
+        document.getElementById(
+          "mesAnio"
+        ).textContent = `${fechaActual.toLocaleString("es-ES", {
+          month: "long",
+        })} ${anio}`;
+
+        tbody.innerHTML = "";
+        let fila = document.createElement("tr");
+
+        for (let i = 0; i < primerDia; i++) {
+          fila.appendChild(document.createElement("td"));
+        }
+
+        for (let dia = 1; dia <= diasMes; dia++) {
+          const celda = document.createElement("td");
+          celda.innerHTML = `<strong>${dia}</strong>`;
+          const fecha = `${anio}-${String(mes + 1).padStart(2, "0")}-${String(
+            dia
+          ).padStart(2, "0")}`;
+
+          tareas.forEach((t) => {
+            if (t.inicio === fecha) {
+              celda.innerHTML += `<div style="color: blue;">${t.titulo}</div>`;
+            }
+            if (t.fin === fecha) {
+              celda.innerHTML += `<div style="color: red;">${t.titulo}</div>`;
+            }
+          });
+
+          fila.appendChild(celda);
+          if ((primerDia + dia) % 7 === 0 || dia === diasMes) {
+            tbody.appendChild(fila);
+            fila = document.createElement("tr");
+          }
+        }
+      }
+
+      function agregarTarea() {
+        const titulo = document.getElementById("nuevoTitulo").value;
+        const descripcion = document.getElementById("nuevaDescripcion").value;
+        const inicio = document.getElementById("nuevoInicio").value;
+        const fin = document.getElementById("nuevoFin").value;
+        const estado = document.getElementById("nuevoEstado").value;
+
+        if (titulo && inicio && fin && estado) {
+          tareas.push({ titulo, descripcion, inicio, fin, estado });
+          document.getElementById("nuevoTitulo").value = "";
+          document.getElementById("nuevaDescripcion").value = "";
+          document.getElementById("nuevoInicio").value = "";
+          document.getElementById("nuevoFin").value = "";
+          actualizarVista();
+        }
+      }
+
+      function actualizarVista() {
+        const kanban = document.getElementById("kanban");
+        kanban.innerHTML = "";
+        const filtro = document.getElementById("filtro").value.toLowerCase();
+
+        estados.forEach((estado) => {
+          const columna = document.createElement("div");
+          columna.className = "column";
+          columna.innerHTML = `<h2>${estado}</h2>`;
+
+          tareas
+            .filter(
+              (t) =>
+                t.estado === estado &&
+                (t.titulo.toLowerCase().includes(filtro) ||
+                  t.descripcion.toLowerCase().includes(filtro))
+            )
+            .forEach((t) => {
+              const card = document.createElement("div");
+              card.className = "card";
+              const hoy = new Date().toISOString().split("T")[0];
+              if (t.fin < hoy && t.estado !== "Finalizada")
+                card.classList.add("vencida");
+
+              card.innerHTML = `<strong>${t.titulo}</strong><br>
+              <span class="fecha">Inicio: ${t.inicio}</span><br>
+              <span class="fecha">Fin: ${t.fin}</span><br>
+              <span>${t.descripcion}</span>`;
+
+              columna.appendChild(card);
+            });
+
+          kanban.appendChild(columna);
+        });
+
+        // resumen
+        const resumen = {};
+        estados.forEach((estado) => {
+          resumen[estado] = tareas.filter((t) => t.estado === estado).length;
+        });
+        const resumenTexto = estados
+          .map((e) => `${e}: ${resumen[e]}`)
+          .join(" | ");
+        document.getElementById("resumen").textContent =
+          "Resumen: " + resumenTexto;
+      }
+
+      function exportarCSV() {
+        const encabezados = [
+          "Título",
+          "Descripción",
+          "Inicio",
+          "Fin",
+          "Estado",
+        ];
+        const filas = tareas.map((t) => [
+          t.titulo,
+          t.descripcion,
+          t.inicio,
+          t.fin,
+          t.estado,
+        ]);
+
+        let csv = encabezados.join(",") + "\n";
+        filas.forEach((f) => {
+          csv += f.map((campo) => `"${campo}"`).join(",") + "\n";
+        });
+
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "tareas.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function renderKanban() {
+        actualizarVista();
+      }
+
+      renderKanban();
+    </script>
+  </body>
+</html>
