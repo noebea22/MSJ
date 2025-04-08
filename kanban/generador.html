@@ -2,89 +2,96 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Generador de HTML con tareas</title>
+    <title>Generador de Kanban</title>
   </head>
   <body>
-    <h1>Generador de Tablero HTML</h1>
+    <h2>Generador de Tablero Kanban</h2>
 
-    <label
-      >📄 Cargar tablero.html:
-      <input type="file" id="htmlFile" accept=".html" />
-    </label>
-    <br /><br />
-    <label
-      >📑 Cargar tareas.csv:
-      <input type="file" id="csvFile" accept=".csv" />
-    </label>
-    <br /><br />
+    <p>1. Carga el archivo HTML base:</p>
+    <input type="file" id="htmlInput" accept=".html" /><br /><br />
 
-    <button onclick="generarHTML()">🎯 Generar HTML Final</button>
-    <br /><br />
-    <a id="downloadLink" style="display: none">⬇️ Descargar HTML generado</a>
+    <p>2. Carga el archivo CSV de tareas:</p>
+    <input type="file" id="csvInput" accept=".csv" /><br /><br />
+
+    <button id="generateBtn" disabled>Generar archivo HTML final</button>
 
     <script>
-      let htmlContent = "";
-      let tareasDesdeCSV = "";
+      let baseHTMLContent = "";
+      let tareasCSVData = "";
 
-      function parseCSV(text) {
-        const rows = text.trim().split("\n");
-        const headers = rows[0].split(",");
-        const tareas = rows.slice(1).map((row, index) => {
-          const values = row.split(",");
-          const obj = {};
-          headers.forEach((h, i) => {
-            const cleanKey = h.replace(/"/g, "").toLowerCase();
-            const cleanVal = values[i]
-              .replace(/(^"|"$)/g, "")
-              .replace(/""/g, '"');
-            obj[cleanKey] = cleanVal;
-          });
-          return {
-            id: Number(obj.id),
-            titulo: obj.título || obj.titulo,
-            estado: obj.estado,
-            descripcion: obj.descripcion,
-            inicio: obj.inicio,
-            fin: obj.fin,
+      // Leer el archivo HTML base
+      document
+        .getElementById("htmlInput")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            baseHTMLContent = event.target.result;
+            checkReady();
           };
+          if (file) reader.readAsText(file);
         });
-        return tareas;
+
+      // Leer el archivo CSV de tareas
+      document
+        .getElementById("csvInput")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            tareasCSVData = event.target.result;
+            checkReady();
+          };
+          if (file) reader.readAsText(file);
+        });
+
+      function checkReady() {
+        if (baseHTMLContent && tareasCSVData) {
+          document.getElementById("generateBtn").disabled = false;
+        }
       }
 
-      function generarHTML() {
-        const htmlFile = document.getElementById("htmlFile").files[0];
-        const csvFile = document.getElementById("csvFile").files[0];
+      document
+        .getElementById("generateBtn")
+        .addEventListener("click", function () {
+          const tareas = csvToJson(tareasCSVData);
 
-        if (!htmlFile || !csvFile) {
-          alert("Por favor, sube ambos archivos.");
-          return;
-        }
+          const scriptData = `const tareas = ${JSON.stringify(
+            tareas,
+            null,
+            2
+          )};`;
 
-        const readerHTML = new FileReader();
-        readerHTML.onload = function (e) {
-          htmlContent = e.target.result;
+          // Reemplazar la línea "const tareas = ..." en el base HTML
+          const newHTML = baseHTMLContent.replace(
+            /const tareas = .*?;/s,
+            scriptData
+          );
 
-          const readerCSV = new FileReader();
-          readerCSV.onload = function (e) {
-            const tareas = parseCSV(e.target.result);
-            const tareasJS =
-              "let tareas = " + JSON.stringify(tareas, null, 2) + ";";
-            const htmlModificado = htmlContent.replace(
-              /let tareas = \[[\s\S]*?\];/,
-              tareasJS
-            );
+          // Descargar nuevo archivo
+          const blob = new Blob([newHTML], { type: "text/html" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "kanban_final.html";
+          a.click();
+          URL.revokeObjectURL(url);
+        });
 
-            const blob = new Blob([htmlModificado], { type: "text/html" });
-            const url = URL.createObjectURL(blob);
-            const link = document.getElementById("downloadLink");
-            link.href = url;
-            link.download = "tablero_final.html";
-            link.style.display = "inline-block";
-            link.textContent = "⬇️ Descargar HTML generado";
-          };
-          readerCSV.readAsText(csvFile);
-        };
-        readerHTML.readAsText(htmlFile);
+      // Convierte el CSV en un array de objetos
+      function csvToJson(csv) {
+        const lines = csv.trim().split("\n");
+        const headers = lines[0].split(",").map((h) => h.trim());
+
+        const data = lines.slice(1).map((line) => {
+          const values = line.split(",").map((v) => v.trim());
+          const entry = {};
+          headers.forEach((header, i) => {
+            entry[header] = values[i] || "";
+          });
+          return entry;
+        });
+        return data;
       }
     </script>
   </body>
