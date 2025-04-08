@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Planes de Trabajo Mensuales</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      h1 {
+        text-align: center;
+      }
+      .filtros {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        text-align: center;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      .estado-box {
+        padding: 5px 10px;
+        border-radius: 5px;
+        color: white;
+        display: inline-block;
+      }
+      .completada {
+        background-color: #4caf50;
+      }
+      .pendiente {
+        background-color: #f44336;
+      }
+      .en-proceso {
+        background-color: #ff9800;
+      }
+      .resumen {
+        margin-top: 20px;
+        text-align: center;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Planes de Trabajo Mensuales</h1>
+    <div class="filtros">
+      <label for="mes">Mes:</label>
+      <select id="mes"></select>
+      <label for="taller">Taller:</label>
+      <select id="taller"></select>
+      <input type="file" id="archivoCSV" accept=".csv" />
+    </div>
+    <table id="tabla">
+      <thead>
+        <tr>
+          <th>Orden</th>
+          <th>Descripción</th>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Duración</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="resumen" id="resumen"></div>
+
+    <script>
+      let datos = [];
+
+      document
+        .getElementById("archivoCSV")
+        .addEventListener("change", importarCSV);
+      document
+        .getElementById("mes")
+        .addEventListener("change", actualizarTabla);
+      document
+        .getElementById("taller")
+        .addEventListener("change", actualizarTabla);
+
+      function importarCSV(event) {
+        const archivo = event.target.files[0];
+        if (!archivo) return;
+
+        const lector = new FileReader();
+        lector.onload = function (e) {
+          const texto = e.target.result;
+          datos = parsearCSV(texto);
+          poblarFiltros();
+          actualizarTabla();
+        };
+        lector.readAsText(archivo);
+      }
+
+      function parsearCSV(texto) {
+        const lineas = texto.trim().split("\n");
+        const encabezados = lineas[0].split(",");
+        return lineas.slice(1).map((linea) => {
+          const valores = linea.split(",");
+          const entrada = {};
+          encabezados.forEach((encabezado, i) => {
+            entrada[encabezado.trim()] = valores[i]?.trim() || "";
+          });
+          return entrada;
+        });
+      }
+
+      function poblarFiltros() {
+        const meses = new Set();
+        const talleres = new Set();
+
+        datos.forEach((d) => {
+          const mes = d.fecha_inicio.slice(0, 7);
+          meses.add(mes);
+          talleres.add(d.taller);
+        });
+
+        const selectMes = document.getElementById("mes");
+        selectMes.innerHTML = [...meses]
+          .sort()
+          .map((m) => `<option value="${m}">${m}</option>`)
+          .join("");
+
+        const selectTaller = document.getElementById("taller");
+        selectTaller.innerHTML =
+          `<option value="todos">Todos</option>` +
+          [...talleres]
+            .sort()
+            .map((t) => `<option value="${t}">${t}</option>`)
+            .join("");
+      }
+
+      function diasEnMes(mes) {
+        const [a, m] = mes.split("-");
+        return new Date(a, m, 0).getDate();
+      }
+
+      function actualizarTabla() {
+        const mes = document.getElementById("mes").value;
+        const taller = document.getElementById("taller").value;
+        const tbody = document.querySelector("#tabla tbody");
+        const resumenDiv = document.getElementById("resumen");
+        tbody.innerHTML = "";
+
+        const filtrados = datos.filter(
+          (d) =>
+            d.fecha_inicio.slice(0, 7) <= mes &&
+            d.fecha_fin.slice(0, 7) >= mes &&
+            (taller === "todos" || d.taller === taller)
+        );
+
+        let completadas = 0,
+          pendientes = 0,
+          enProceso = 0,
+          diasTotales = 0,
+          diasEjecutados = 0;
+
+        filtrados.forEach((d) => {
+          let claseEstado = "pendiente";
+          if (d.estado.toLowerCase().includes("complet"))
+            claseEstado = "completada";
+          else if (d.estado.toLowerCase().includes("proceso"))
+            claseEstado = "en-proceso";
+
+          if (claseEstado === "completada") completadas++;
+          else if (claseEstado === "pendiente") pendientes++;
+          else if (claseEstado === "en-proceso") enProceso++;
+
+          const inicio = new Date(d.fecha_inicio);
+          const fin = new Date(d.fecha_fin);
+          const mesInicio = new Date(mes + "-01");
+
+          const inicioCalc = inicio < mesInicio ? mesInicio : inicio;
+          const finCalc = fin;
+
+          const duracion = Math.max(
+            1,
+            Math.ceil((finCalc - inicioCalc) / (1000 * 60 * 60 * 24)) + 1
+          );
+          diasTotales += duracion;
+          if (claseEstado === "completada") diasEjecutados += duracion;
+
+          const fila = document.createElement("tr");
+          fila.innerHTML = `
+          <td>${d.orden_id}</td>
+          <td>${d.descripcion}</td>
+          <td>${d.fecha_inicio}</td>
+          <td>${d.fecha_fin}</td>
+          <td>${duracion}</td>
+          <td><span class="estado-box ${claseEstado}">${d.estado}</span></td>
+        `;
+          tbody.appendChild(fila);
+        });
+
+        const porcentaje = diasTotales
+          ? ((diasEjecutados / diasTotales) * 100).toFixed(1)
+          : "0.0";
+        resumenDiv.innerHTML = `Total: ${filtrados.length} | Completadas: ${completadas} | En Proceso: ${enProceso} | Pendientes: ${pendientes} | Ejecución mensual: ${porcentaje}%`;
+      }
+    </script>
+  </body>
+</html>

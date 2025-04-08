@@ -1,0 +1,9 @@
+taller,orden_id,descripcion,fecha_inicio,fecha_fin,estado
+Mecánica,001,Cambio de correas,2025-04-01,2025-04-03,Completada
+Mecánica,002,Revisión general,2025-04-04,2025-04-06,Completada
+Mecánica,003,Cambio de aceite,2025-04-10,2025-04-30,Completada
+Electricidad,101,Instalación de batería,2025-04-05,2025-04-06,Pendiente
+Electricidad,102,Revisión de alternador,2025-04-08,2025-04-10,Pendiente
+Pintura,201,Pintado capó,2025-04-02,2025-04-04,Completada
+Pintura,202,Reparación de rayones,2025-04-05,2025-04-08,En Proceso
+Pintura,203,Pulido completo,2025-04-09,2025-04-11,Pendiente
