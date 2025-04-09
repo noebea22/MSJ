@@ -396,15 +396,30 @@
         ];
         const filas = tareas.map((t) =>
           [t.id, t.titulo, t.estado, t.descripcion, t.inicio, t.fin]
-            .map((campo) => `"${String(campo).replace(/"/g, '""')}"`) // Doble comillas para escapar
+            .map((campo) => {
+              const str = String(campo);
+              if (
+                str.includes(";") ||
+                str.includes('"') ||
+                str.includes("\n")
+              ) {
+                return `"${str.replace(/"/g, '""')}"`;
+              }
+              return str;
+            })
             .join(";")
         );
+
         const contenido = [
           encabezados.map((e) => `"${e}"`).join(";"),
           ...filas,
         ].join("\r\n");
 
-        const blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" });
+        // Agregar BOM (Byte Order Mark) al principio del archivo para Excel
+        const BOM = "\uFEFF"; // UTF-8 BOM
+        const blob = new Blob([BOM + contenido], {
+          type: "text/csv;charset=utf-8;",
+        });
         const url = URL.createObjectURL(blob);
 
         const link = document.createElement("a");
@@ -422,12 +437,27 @@
         const lector = new FileReader();
         lector.onload = function (e) {
           const contenido = e.target.result;
-          const lineas = contenido.split(/\r?\n/).filter(Boolean);
-          const [encabezado, ...filas] = lineas;
 
-          tareas = filas.map((linea) => {
+          const lineas = contenido.split(/\r?\n/).filter(Boolean);
+          if (lineas.length < 2)
+            return alert("Archivo CSV vacío o mal formado.");
+
+          const encabezado = lineas[0];
+
+          // Detectar delimitador automáticamente: , o ;
+          const delimitador =
+            (encabezado.match(/;/g) || []).length >
+            (encabezado.match(/,/g) || []).length
+              ? ";"
+              : ",";
+
+          const regexSplit = new RegExp(
+            `${delimitador}(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)`
+          );
+
+          tareas = lineas.slice(1).map((linea) => {
             const columnas = linea
-              .split(/;(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)/)
+              .split(regexSplit)
               .map((campo) => campo.replace(/^"|"$/g, "").replace(/""/g, '"'));
 
             return {
@@ -443,7 +473,7 @@
           actualizarVista();
         };
 
-        lector.readAsText(archivo, "UTF-8");
+        lector.readAsText(archivo, "windows-1252");
       }
 
       actualizarVista();
