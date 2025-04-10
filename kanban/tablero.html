@@ -44,7 +44,8 @@
         background: #fff;
         padding: 1rem;
         border-radius: 8px;
-        width: 300px;
+        flex: 1 1 30%;
+        min-width: 300px;
         min-height: 200px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
       }
@@ -90,7 +91,7 @@
         margin: 0 auto;
         border-collapse: collapse;
         width: 100%;
-        max-width: 800px;
+        max-width: none;
       }
 
       table.calendar th {
@@ -125,8 +126,12 @@
 
     <div class="toolbar" id="barraControles">
       <h3>➕</h3>
-      <input type="text" id="nuevoTitulo" placeholder="Título" />
-      <input type="text" id="nuevaDescripcion" placeholder="Descripción" />
+      <input type="text" id="nuevoTitulo" placeholder="Tema / SARM / NREF" />
+      <input
+        type="text"
+        id="nuevaDescripcion"
+        placeholder="Acción / CA ASUNTO NRO / Otro"
+      />
       <input type="date" id="nuevoInicio" />
       <input type="date" id="nuevoFin" />
       <select id="nuevoEstado">
@@ -189,38 +194,6 @@
           fin: "2026-04-05",
           descripcion: "Reunión con el cliente",
         },
-        {
-          id: 2,
-          titulo: "Diseño inicial",
-          estado: "En progreso",
-          inicio: "2025-04-02",
-          fin: "2025-04-07",
-          descripcion: "Crear wireframes",
-        },
-        {
-          id: 3,
-          titulo: "Desarrollo backend",
-          estado: "En progreso",
-          inicio: "2025-03-04",
-          fin: "2025-03-10",
-          descripcion: "Base de datos y API",
-        },
-        {
-          id: 4,
-          titulo: "Pruebas QA",
-          estado: "Finalizada",
-          inicio: "2025-03-25",
-          fin: "2025-03-30",
-          descripcion: "Validar funcionalidades",
-        },
-        {
-          id: 5,
-          titulo: "Entrega final",
-          estado: "Planificada",
-          inicio: "2025-04-08",
-          fin: "2025-04-12",
-          descripcion: "Presentación final",
-        },
       ];
 
       const estados = ["Planificada", "En progreso", "Finalizada"];
@@ -278,10 +251,10 @@
 
           tareas.forEach((t) => {
             if (t.inicio === fecha) {
-              celda.innerHTML += `<div style="color: blue;">${t.titulo}</div>`;
+              celda.innerHTML += `<div style="color: blue; border-bottom: 1px dashed #ccc; padding-bottom: 2px; margin-bottom: 2px;">Inicio: ${t.titulo}</div>`;
             }
             if (t.fin === fecha) {
-              celda.innerHTML += `<div style="color: red;">${t.titulo}</div>`;
+              celda.innerHTML += `<div style="color: red; border-bottom: 1px dashed #ccc; padding-bottom: 2px; margin-bottom: 2px;">Fin: ${t.titulo}</div>`;
             }
           });
 
@@ -422,9 +395,19 @@
         });
         const url = URL.createObjectURL(blob);
 
+        // Obtener la fecha y hora actual
+        const ahora = new Date();
+        const fechaHora = ahora
+          .toISOString()
+          .replace(/T/, "_")
+          .replace(/:/g, "-")
+          .replace(/\..+/, ""); // Formato: YYYY-MM-DD_HH-MM-SS
+
+        const nombreArchivo = `tareas_${fechaHora}.csv`;
+
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", "tareas.csv");
+        link.setAttribute("download", nombreArchivo);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -437,43 +420,77 @@
         const lector = new FileReader();
         lector.onload = function (e) {
           const contenido = e.target.result;
-
           const lineas = contenido.split(/\r?\n/).filter(Boolean);
-          if (lineas.length < 2)
-            return alert("Archivo CSV vacío o mal formado.");
+          if (lineas.length < 2) {
+            alert("Archivo CSV vacío o mal formado.");
+            return;
+          }
 
           const encabezado = lineas[0];
-
-          // Detectar delimitador automáticamente: , o ;
           const delimitador =
             (encabezado.match(/;/g) || []).length >
             (encabezado.match(/,/g) || []).length
               ? ";"
               : ",";
-
           const regexSplit = new RegExp(
             `${delimitador}(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)`
           );
 
-          tareas = lineas.slice(1).map((linea) => {
+          const errores = [];
+          const nuevasTareas = [];
+
+          for (let i = 1; i < lineas.length; i++) {
+            const linea = lineas[i];
             const columnas = linea
               .split(regexSplit)
               .map((campo) => campo.replace(/^"|"$/g, "").replace(/""/g, '"'));
 
-            return {
-              id: parseInt(columnas[0]),
+            if (columnas.length !== 6) {
+              errores.push(
+                `Línea ${i + 1}: columnas inválidas (${columnas.length})`
+              );
+              continue;
+            }
+
+            const id = parseInt(columnas[0]);
+            if (isNaN(id)) {
+              errores.push(`Línea ${i + 1}: ID no es un número`);
+              continue;
+            }
+
+            const fechaValida = (str) => /^\d{4}-\d{2}-\d{2}$/.test(str);
+            if (!fechaValida(columnas[4])) {
+              errores.push(
+                `Línea ${i + 1}: fecha de inicio inválida (${columnas[4]})`
+              );
+            }
+            if (!fechaValida(columnas[5])) {
+              errores.push(
+                `Línea ${i + 1}: fecha de fin inválida (${columnas[5]})`
+              );
+            }
+
+            nuevasTareas.push({
+              id,
               titulo: columnas[1],
               estado: columnas[2],
               descripcion: columnas[3],
               inicio: columnas[4],
               fin: columnas[5],
-            };
-          });
+            });
+          }
 
+          tareas = nuevasTareas;
           actualizarVista();
+
+          if (errores.length) {
+            alert("Errores al importar CSV:\n\n" + errores.join("\n"));
+          } else {
+            alert("Tareas importadas correctamente.");
+          }
         };
 
-        lector.readAsText(archivo, "windows-1252");
+        lector.readAsText(archivo, "utf-8");
       }
 
       actualizarVista();
